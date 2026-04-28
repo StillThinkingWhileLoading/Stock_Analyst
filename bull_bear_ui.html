@@ -1,0 +1,909 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>BullBear — Stock Analysis Terminal</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<style>
+  /* ── DARK THEME (default) ── */
+  :root {
+    --bg:        #0a0c0f;
+    --surface:   #111418;
+    --border:    #1e2329;
+    --border2:   #2a3040;
+    --bull:      #00e676;
+    --bear:      #ff3d57;
+    --neutral:   #e8b84b;
+    --text:      #c9d1d9;
+    --text-dim:  #586069;
+    --text-mid:  #8b949e;
+    --accent:    #00b4d8;
+    --grid-line: rgba(0,180,216,0.03);
+    --shadow:    rgba(0,0,0,0.4);
+    --font-mono: 'DM Mono', monospace;
+    --font-head: 'Bebas Neue', sans-serif;
+    --font-body: 'DM Sans', sans-serif;
+  }
+
+  /* ── LIGHT THEME ── */
+  [data-theme="light"] {
+    --bg:        #f4f6f8;
+    --surface:   #ffffff;
+    --border:    #dde1e7;
+    --border2:   #c8cdd6;
+    --bull:      #00a854;
+    --bear:      #d9253b;
+    --neutral:   #b5860d;
+    --text:      #1a1f2e;
+    --text-dim:  #8a93a2;
+    --text-mid:  #5a6478;
+    --accent:    #0090b5;
+    --grid-line: rgba(0,144,181,0.05);
+    --shadow:    rgba(0,0,0,0.08);
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-body);
+    min-height: 100vh;
+    overflow-x: hidden;
+    transition: background 0.3s, color 0.3s;
+  }
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image:
+      linear-gradient(var(--grid-line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none; z-index: 0;
+    transition: background-image 0.3s;
+  }
+
+  .container {
+    position: relative; z-index: 1;
+    max-width: 900px; margin: 0 auto;
+    padding: 48px 24px 80px;
+  }
+
+  /* ── Header ── */
+  header {
+    display: flex; align-items: flex-end; justify-content: space-between;
+    margin-bottom: 48px;
+    animation: fadeDown 0.6s ease both;
+  }
+  .header-left { display: flex; align-items: flex-end; gap: 16px; }
+  .logo { font-family: var(--font-head); font-size: 64px; line-height: 1; letter-spacing: 2px; }
+  .logo span:first-child { color: var(--bull); }
+  .logo span:last-child  { color: var(--bear); }
+  .logo-sub {
+    font-family: var(--font-mono); font-size: 11px;
+    color: var(--text-dim); letter-spacing: 3px;
+    text-transform: uppercase; margin-bottom: 10px;
+  }
+
+  /* ── Theme Toggle ── */
+  .theme-toggle {
+    display: flex; align-items: center; gap: 10px;
+    font-family: var(--font-mono); font-size: 11px;
+    color: var(--text-dim); letter-spacing: 1px;
+    cursor: pointer; user-select: none;
+    padding: 8px 14px;
+    border: 1px solid var(--border2);
+    border-radius: 40px;
+    background: var(--surface);
+    transition: all 0.2s;
+    flex-shrink: 0;
+    align-self: center;
+  }
+  .theme-toggle:hover { border-color: var(--accent); color: var(--accent); }
+
+  .toggle-track {
+    width: 36px; height: 20px;
+    background: var(--border2);
+    border-radius: 10px;
+    position: relative;
+    transition: background 0.3s;
+    flex-shrink: 0;
+  }
+  [data-theme="light"] .toggle-track { background: var(--accent); }
+
+  .toggle-thumb {
+    width: 14px; height: 14px;
+    background: var(--text-dim);
+    border-radius: 50%;
+    position: absolute; top: 3px; left: 3px;
+    transition: transform 0.3s, background 0.3s;
+  }
+  [data-theme="light"] .toggle-thumb {
+    transform: translateX(16px);
+    background: #fff;
+  }
+
+  .toggle-icon { font-size: 14px; transition: opacity 0.3s; }
+
+  /* ── Input Card ── */
+  .input-card {
+    background: var(--surface);
+    border: 1px solid var(--border2);
+    border-radius: 4px; padding: 32px; margin-bottom: 32px;
+    animation: fadeUp 0.6s 0.15s ease both;
+    position: relative; overflow: hidden;
+    box-shadow: 0 2px 12px var(--shadow);
+    transition: background 0.3s, border-color 0.3s, box-shadow 0.3s;
+  }
+  .input-card::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+    background: linear-gradient(90deg, var(--bull), var(--accent), var(--bear));
+  }
+  .input-label {
+    font-family: var(--font-mono); font-size: 11px; letter-spacing: 3px;
+    color: var(--text-dim); text-transform: uppercase; margin-bottom: 20px;
+  }
+  .input-row { display: flex; gap: 12px; align-items: stretch; }
+  .ticker-wrapper { position: relative; flex: 1; }
+  .ticker-prefix {
+    position: absolute; left: 16px; top: 50%; transform: translateY(-50%);
+    font-family: var(--font-mono); font-size: 18px;
+    color: var(--text-dim); pointer-events: none;
+  }
+  #tickerInput {
+    width: 100%; background: var(--bg);
+    border: 1px solid var(--border2); border-radius: 3px;
+    padding: 14px 16px;
+    font-family: var(--font-head); font-size: 28px; letter-spacing: 4px;
+    color: var(--text); outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s, background 0.3s, color 0.3s;
+    text-transform: uppercase;
+  }
+  #tickerInput::placeholder { color: var(--text-dim); }
+  #tickerInput:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(0,180,216,0.1); }
+
+  /* ── Market hint strip ── */
+  .market-hints {
+    display: flex; gap: 10px; flex-wrap: wrap; margin-top: 16px;
+  }
+  .market-hint {
+    display: flex; align-items: center; gap: 8px;
+    background: var(--bg); border: 1px solid var(--border2);
+    border-radius: 3px; padding: 6px 12px;
+    font-family: var(--font-mono); font-size: 11px;
+    transition: border-color 0.2s;
+  }
+  .market-hint:hover { border-color: var(--accent); }
+  .hint-flag { font-size: 14px; line-height: 1; }
+  .hint-label { color: var(--text-dim); letter-spacing: 1px; text-transform: uppercase; }
+  .hint-example { color: var(--accent); letter-spacing: 1px; }
+
+  #analyzeBtn {
+    background: transparent; border: 1px solid var(--bull); color: var(--bull);
+    font-family: var(--font-mono); font-size: 12px; font-weight: 500;
+    letter-spacing: 2px; text-transform: uppercase;
+    padding: 14px 28px; border-radius: 3px; cursor: pointer;
+    transition: all 0.2s; white-space: nowrap;
+    position: relative; overflow: hidden;
+  }
+  #analyzeBtn::before {
+    content: ''; position: absolute; inset: 0;
+    background: var(--bull); transform: translateY(100%);
+    transition: transform 0.2s; z-index: -1;
+  }
+  #analyzeBtn:hover { color: var(--bg); }
+  #analyzeBtn:hover::before { transform: translateY(0); }
+  #analyzeBtn:disabled { border-color: var(--text-dim); color: var(--text-dim); cursor: not-allowed; }
+  #analyzeBtn:disabled::before { display: none; }
+
+  /* ── Error ── */
+  .error-msg {
+    display: none; font-family: var(--font-mono); font-size: 12px;
+    color: var(--bear); margin-top: 12px; padding: 10px 14px;
+    border: 1px solid rgba(255,61,87,0.3); border-radius: 3px;
+    background: rgba(255,61,87,0.05);
+  }
+  .error-msg.show { display: block; }
+
+  /* ── Loading ── */
+  #loadingState {
+    display: none; background: var(--surface); border: 1px solid var(--border2);
+    border-radius: 4px; padding: 48px 32px; text-align: center;
+    margin-bottom: 32px; animation: fadeUp 0.4s ease both;
+    box-shadow: 0 2px 12px var(--shadow);
+    transition: background 0.3s;
+  }
+  #loadingState.show { display: block; }
+  .loading-ticker { font-family: var(--font-head); font-size: 48px; letter-spacing: 6px; color: var(--accent); margin-bottom: 16px; }
+  .loading-steps { display: flex; justify-content: center; gap: 32px; margin: 24px 0; }
+  .step {
+    display: flex; flex-direction: column; align-items: center; gap: 8px;
+    font-family: var(--font-mono); font-size: 10px; letter-spacing: 2px;
+    color: var(--text-dim); text-transform: uppercase;
+  }
+  .step-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--border2); transition: all 0.4s; }
+  .step.active .step-dot { background: var(--accent); box-shadow: 0 0 8px var(--accent); }
+  .step.done .step-dot   { background: var(--bull); }
+  .step.active { color: var(--accent); }
+  .step.done   { color: var(--bull); }
+  .loading-bar { height: 2px; background: var(--border); border-radius: 2px; overflow: hidden; margin-top: 24px; }
+  .loading-bar-fill { height: 100%; background: linear-gradient(90deg, var(--bull), var(--accent)); width: 0%; transition: width 0.6s ease; }
+
+  /* ── Results ── */
+  #resultsState { display: none; animation: fadeUp 0.5s ease both; }
+  #resultsState.show { display: block; }
+
+  .result-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 24px; flex-wrap: wrap; gap: 12px;
+  }
+  .result-ticker-tag { font-family: var(--font-head); font-size: 36px; letter-spacing: 4px; color: var(--text); }
+  .rating-badge { font-family: var(--font-mono); font-size: 13px; font-weight: 500; padding: 6px 16px; border-radius: 2px; letter-spacing: 1px; }
+  .rating-bull { background: rgba(0,230,118,0.12); color: var(--bull); border: 1px solid rgba(0,230,118,0.3); }
+  .rating-bear { background: rgba(255,61,87,0.12);  color: var(--bear); border: 1px solid rgba(255,61,87,0.3); }
+  .rating-neut { background: rgba(232,184,75,0.12); color: var(--neutral); border: 1px solid rgba(232,184,75,0.3); }
+
+  /* ── Single Report Panel ── */
+  .report-panel {
+    background: var(--surface);
+    border: 1px solid var(--border2);
+    border-radius: 4px;
+    padding: 36px 40px;
+    position: relative; overflow: hidden;
+    box-shadow: 0 2px 12px var(--shadow);
+    transition: background 0.3s, border-color 0.3s;
+  }
+  .report-panel::before {
+    content: ''; position: absolute; top: 0; left: 0; width: 3px; height: 100%;
+    background: linear-gradient(180deg, var(--bull), var(--accent), var(--bear));
+  }
+
+  /* ── Markdown report styles ── */
+  .report-body { font-family: var(--font-body); font-size: 14px; line-height: 1.85; color: var(--text); }
+  .report-body h1 {
+    font-family: var(--font-head); font-size: 28px; letter-spacing: 2px;
+    color: var(--text); margin: 0 0 20px; padding-bottom: 12px;
+    border-bottom: 1px solid var(--border2);
+  }
+  .report-body h2 {
+    font-family: var(--font-mono); font-size: 11px; font-weight: 500;
+    letter-spacing: 3px; text-transform: uppercase; color: var(--accent);
+    margin: 28px 0 10px; padding: 8px 12px;
+    background: rgba(0,180,216,0.06);
+    border-left: 3px solid var(--accent); border-radius: 0 3px 3px 0;
+  }
+  [data-theme="light"] .report-body h2 { background: rgba(0,144,181,0.07); }
+  .report-body h3 {
+    font-family: var(--font-body); font-size: 13px; font-weight: 600;
+    color: var(--text-mid); margin: 16px 0 8px;
+  }
+  .report-body p { margin: 0 0 14px; color: var(--text); }
+  .report-body strong { color: var(--text); font-weight: 700; }
+  .report-body em { color: var(--text-mid); font-style: italic; }
+  .report-body ul, .report-body ol { margin: 0 0 14px; padding-left: 0; list-style: none; }
+  .report-body ul li, .report-body ol li {
+    position: relative; padding: 5px 0 5px 20px; color: var(--text);
+    border-bottom: 1px solid var(--border);
+  }
+  .report-body ul li::before { content: '›'; position: absolute; left: 4px; color: var(--accent); font-weight: 700; }
+  .report-body ol { counter-reset: li; }
+  .report-body ol li { counter-increment: li; }
+  .report-body ol li::before {
+    content: counter(li) '.'; position: absolute; left: 0;
+    color: var(--accent); font-family: var(--font-mono); font-size: 11px;
+  }
+  .report-body .disclaimer {
+    margin-top: 24px; padding: 12px 16px;
+    background: rgba(232,184,75,0.06); border: 1px solid rgba(232,184,75,0.2);
+    border-radius: 3px; font-family: var(--font-mono); font-size: 11px;
+    color: var(--neutral); line-height: 1.7;
+  }
+  [data-theme="light"] .report-body .disclaimer { background: rgba(181,134,13,0.06); }
+
+  /* ── Report title block ── */
+  .report-title-block {
+    border-bottom: 1px solid var(--border2);
+    padding-bottom: 24px; margin-bottom: 28px;
+  }
+  .report-title-label {
+    font-family: var(--font-mono); font-size: 10px; letter-spacing: 3px;
+    text-transform: uppercase; color: var(--text-dim); margin-bottom: 8px;
+  }
+  .report-title-company {
+    font-family: var(--font-head); font-size: 32px; letter-spacing: 3px;
+    color: var(--text); margin-bottom: 12px;
+  }
+  .report-title-meta {
+    display: flex; gap: 32px; flex-wrap: wrap;
+    font-family: var(--font-mono); font-size: 12px; color: var(--text-mid);
+  }
+  .outlook-bull   { color: var(--bull); }
+  .outlook-bear   { color: var(--bear); }
+  .outlook-neut   { color: var(--neutral); }
+
+  /* ── Separators ── */
+  .report-body hr.sep-major {
+    border: none; border-top: 1px solid var(--border2);
+    margin: 28px 0;
+  }
+  .report-body hr.sep-minor {
+    border: none; border-top: 1px solid var(--border2);
+    margin: 16px 0; opacity: 0.5;
+  }
+
+  /* ── Tables ── */
+  .report-body table {
+    width: 100%; border-collapse: collapse;
+    margin: 20px 0; font-size: 13px;
+  }
+  .report-body th {
+    text-align: left; padding: 8px 12px;
+    font-family: var(--font-mono); font-size: 11px; letter-spacing: 1px;
+    text-transform: uppercase; color: var(--accent);
+    border-bottom: 1px solid var(--border2);
+  }
+  .report-body td {
+    padding: 8px 12px; color: var(--text);
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    vertical-align: top;
+  }
+  .report-body tr:last-child td { border-bottom: none; }
+  [data-theme="light"] .report-body td { border-bottom-color: rgba(0,0,0,0.05); }
+
+  .big-rating { font-family: var(--font-head); font-size: 36px; letter-spacing: 2px; color: var(--neutral); }
+  .rating-line {
+    display: inline-flex; align-items: center; gap: 10px;
+    margin: 20px 0 8px; font-family: var(--font-mono); font-size: 12px; color: var(--text-mid);
+  }
+
+  /* ── History panel ── */
+  #historySection { margin-top: 48px; }
+  .history-heading {
+    font-family: var(--font-mono); font-size: 11px; letter-spacing: 3px;
+    text-transform: uppercase; color: var(--text-dim);
+    margin-bottom: 16px;
+  }
+  .history-item {
+    border: 1px solid var(--border2); border-radius: 4px;
+    margin-bottom: 10px; overflow: hidden;
+    transition: border-color 0.2s;
+  }
+  .history-item:hover { border-color: var(--accent); }
+  .history-item-header {
+    display: flex; align-items: center; gap: 14px;
+    padding: 14px 18px; cursor: pointer;
+    background: var(--surface);
+    transition: background 0.2s;
+    user-select: none;
+  }
+  .history-item-header:hover { background: var(--bg); }
+  .history-chevron {
+    font-family: var(--font-mono); font-size: 11px; color: var(--text-dim);
+    transition: transform 0.2s; flex-shrink: 0;
+  }
+  .history-item.open .history-chevron { transform: rotate(90deg); }
+  .history-ticker {
+    font-family: var(--font-head); font-size: 20px; letter-spacing: 2px;
+    color: var(--text); flex-shrink: 0;
+  }
+  .history-company {
+    font-family: var(--font-body); font-size: 13px; color: var(--text-mid);
+    flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .history-date {
+    font-family: var(--font-mono); font-size: 11px; color: var(--text-dim);
+    flex-shrink: 0;
+  }
+  .history-actions {
+    display: flex; gap: 8px; flex-shrink: 0;
+  }
+  .history-btn {
+    font-family: var(--font-mono); font-size: 10px; letter-spacing: 1px;
+    padding: 4px 10px; border-radius: 2px; border: 1px solid;
+    cursor: pointer; background: transparent;
+    transition: background 0.15s, color 0.15s;
+  }
+  .history-btn.reload { border-color: var(--accent); color: var(--accent); }
+  .history-btn.reload:hover { background: var(--accent); color: var(--bg); }
+  .history-btn.del    { border-color: var(--bear);  color: var(--bear);  }
+  .history-btn.del:hover { background: var(--bear); color: #fff; }
+  .history-item-body {
+    display: none; padding: 28px 28px 32px;
+    border-top: 1px solid var(--border2);
+    background: var(--surface);
+  }
+  .history-item.open .history-item-body { display: block; }
+  .history-stale-banner {
+    font-family: var(--font-mono); font-size: 11px; color: var(--neutral);
+    background: rgba(232,184,75,0.07); border: 1px solid rgba(232,184,75,0.2);
+    border-radius: 3px; padding: 7px 14px; margin-bottom: 20px;
+    display: inline-block;
+  }
+
+  /* ── New analysis btn ── */
+  .new-analysis-btn {
+    display: inline-flex; align-items: center; gap: 8px; margin-top: 24px;
+    font-family: var(--font-mono); font-size: 11px; letter-spacing: 2px;
+    text-transform: uppercase; color: var(--text-dim);
+    background: none; border: 1px solid var(--border2); border-radius: 3px;
+    padding: 10px 18px; cursor: pointer; transition: all 0.2s;
+  }
+  .new-analysis-btn:hover { color: var(--text); border-color: var(--text-mid); }
+
+  /* ── Animations ── */
+  @keyframes fadeDown { from { opacity:0; transform:translateY(-20px); } to { opacity:1; transform:translateY(0); } }
+  @keyframes fadeUp   { from { opacity:0; transform:translateY(16px);  } to { opacity:1; transform:translateY(0); } }
+  @keyframes pulse    { 0%,100% { opacity:1; } 50% { opacity:0.4; } }
+  .pulse { animation: pulse 1.4s ease-in-out infinite; }
+
+  footer {
+    margin-top: 64px; text-align: center;
+    font-family: var(--font-mono); font-size: 11px;
+    color: var(--text-dim); letter-spacing: 1px;
+    animation: fadeUp 0.6s 0.4s ease both;
+  }
+
+  @media (max-width: 600px) {
+    .logo { font-size: 42px; }
+    .input-row { flex-direction: column; }
+    .loading-steps { gap: 16px; }
+    .report-panel { padding: 24px 20px; }
+    header { flex-direction: column; align-items: flex-start; gap: 16px; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- Header -->
+  <header>
+    <div class="header-left">
+      <div><div class="logo"><span>BULL</span><span>BEAR</span></div></div>
+      <div class="logo-sub">Stock Analysis Terminal</div>
+    </div>
+
+    <!-- Dark / Light toggle -->
+    <div class="theme-toggle" onclick="toggleTheme()" title="Toggle dark/light mode">
+      <span class="toggle-icon">🌙</span>
+      <div class="toggle-track"><div class="toggle-thumb"></div></div>
+      <span class="toggle-icon">☀️</span>
+    </div>
+  </header>
+
+  <!-- Input Card -->
+  <div class="input-card">
+    <div class="input-label">// Enter ticker symbol to run analysis</div>
+    <div class="input-row">
+      <div class="ticker-wrapper">
+        <input id="tickerInput" type="text" placeholder="AAPL" maxlength="20" autocomplete="off" spellcheck="false"/>
+      </div>
+      <button id="analyzeBtn" onclick="runAnalysis()">Run Analysis</button>
+    </div>
+    <div class="market-hints">
+      <div class="market-hint"><span class="hint-flag">🇺🇸</span><span class="hint-label">US</span><span class="hint-example">AAPL · TSLA</span></div>
+      <div class="market-hint"><span class="hint-flag">🇮🇳</span><span class="hint-label">India NSE</span><span class="hint-example">SBIN.NS · TCS.NS</span></div>
+      <div class="market-hint"><span class="hint-flag">🇮🇳</span><span class="hint-label">India BSE</span><span class="hint-example">SBIN.BO · CFEL.BO</span></div>
+      <div class="market-hint"><span class="hint-flag">🇬🇧</span><span class="hint-label">London</span><span class="hint-example">BARC.L · HSBA.L</span></div>
+      <div class="market-hint"><span class="hint-flag">🇭🇰</span><span class="hint-label">Hong Kong</span><span class="hint-example">0700.HK · 0005.HK</span></div>
+    </div>
+    <div class="error-msg" id="errorMsg"></div>
+  </div>
+
+  <!-- Loading -->
+  <div id="loadingState">
+    <div class="loading-ticker pulse" id="loadingTicker">—</div>
+    <div class="loading-steps">
+      <div class="step" id="step1"><div class="step-dot"></div>Fetch Data</div>
+      <div class="step" id="step2"><div class="step-dot"></div>Bull Analysis</div>
+      <div class="step" id="step3"><div class="step-dot"></div>Bear Analysis</div>
+      <div class="step" id="step4"><div class="step-dot"></div>Synthesis</div>
+    </div>
+    <div class="loading-bar"><div class="loading-bar-fill" id="loadingBar"></div></div>
+  </div>
+
+  <!-- Results — single full report panel, no tabs -->
+  <div id="resultsState">
+    <div class="result-header">
+      <div class="result-ticker-tag" id="resultTicker"></div>
+      <div class="rating-badge" id="ratingBadge"></div>
+    </div>
+
+    <div class="report-panel">
+      <div class="report-body" id="reportText"></div>
+    </div>
+
+    <button class="new-analysis-btn" onclick="resetUI()">← New Analysis</button>
+  </div>
+
+  <!-- History -->
+  <div id="historySection" style="display:none">
+    <div class="history-heading">// Previous Reports</div>
+    <div id="historyList"></div>
+  </div>
+
+  <footer>BullBear Terminal &nbsp;|&nbsp; Powered by LangGraph &nbsp;|&nbsp; Not financial advice</footer>
+</div>
+
+<script>
+  const API_ENDPOINT = 'http://localhost:8000/analyze';
+
+  // ── SAMPLE DATA ───────────────────────────────────────────
+  const SAMPLE_DATA = {
+    ticker: "AAPL",
+    bull_analysis_raiting: "7/10",
+    bear_analysis_raiting: "7/10",
+    financial_analysis_raiting: "5/10",
+    financial_analysis: `# AAPL Stock Investment Report
+## Analysis Period: November 2025 – March 2026
+
+## 1. Executive Summary
+Apple Inc. (AAPL) exhibited a net price decline of **7.52%** over the analyzed period, characterized by an initial rally followed by repeated pullbacks and consolidation. The stock demonstrated moderate to high volatility with volume spikes often aligning with directional moves, reflecting mixed market sentiment. While short-term trends leaned downward, instances of resilience suggest potential for recovery.
+
+## 2. Price Performance Overview
+Over 101 trading days AAPL opened at $269.05 and closed at $248.80 — a net decrease of **$20.25 or 7.52%**. The period featured an early peak of $286.19 (December 2, 2025), a 6.35% gain from the start, contrasted by a trough of $246.70 (January 20, 2026). Key movements included volatile mid-period swings between $246.70 and $278.12, culminating in late-period consolidation around $250–$255 marked by lower highs and no sustained breakthrough above prior resistance.
+
+## 3. Bull Case Assessment
+The bullish perspective holds merit in highlighting AAPL's demonstrated resilience through multiple intra-period rallies, such as the **13% rebound** from January lows to $278.12 in early February 2026, supported by elevated volume on up days (90.5M shares on February 4 with a 2.58% gain). Strongest supporting signals include the stock's ability to hold support around **$245–$250** on several occasions, indicating potential accumulation and buyer interest during shakeouts.
+
+## 4. Bear Case Assessment
+The bearish argument is substantiated by the persistent pattern of **lower highs and failed rallies**, exemplified by the 13% decline from the February 2026 peak of $278.12 to March's end at $248.80, coupled with high-volume selling (88.3M shares on March 20 with a 1.40% drop). Key risks include widening high-low spreads on negative closes and repeated breakdowns below short-term moving averages.
+
+## 5. Balanced Synthesis
+Both cases agree on moderate-to-high volatility and the stock's range-bound nature with support near $245–$250. They conflict primarily on interpretation: bulls view rallies as signs of strength while bears emphasise failed sustainment as evidence of weakening trends. Objectively, the data supports a **corrective phase without a definitive breakout**.
+
+## 6. Key Metrics Summary
+- **Trend Direction:** Downward bias with choppy consolidation; lower highs post-December peak
+- **Volatility Level:** Moderate to high — standard deviation of closes approximately 9.5
+- **Volume Signals:** Elevated on both up and down days; spikes above 70M often mark reversals
+- **Support / Resistance:** Support $245–$250 · Resistance $260–$280
+- **Momentum:** Neutral to weak — price below ~$265 50-day SMA in late March
+
+## 7. Conclusion & Recommendation
+Based on the net decline, persistent pullbacks, and lack of sustained upward momentum, AAPL presents a cautious profile in the analyzed data.
+
+- **Short-term traders:** Sell — downward trend and high volatility favour the bear case
+- **Long-term investors:** Hold — support levels have held and rebounds show latent demand
+- **Stop-loss levels:** $245 for short positions · $240 for long positions
+
+## 8. Overall Investment Rating: 5/10
+This neutral rating reflects the balanced tension between resilient support and downward pressure, indicating neither strong bullish conviction nor imminent collapse. It would move higher (7/10) with sustained closes above $260 and reduced volume on down days. It would decrease (3/10) if breaks below $245 occur with accelerating volume confirming bearish dominance.
+
+*This analysis is for informational purposes only and does not constitute personalised financial advice. Always consult a qualified financial advisor before making investment decisions.*`
+  };
+
+  // ── THEME TOGGLE ──────────────────────────────────────────
+  function toggleTheme() {
+    const html = document.documentElement;
+    const isLight = html.getAttribute('data-theme') === 'light';
+    html.setAttribute('data-theme', isLight ? 'dark' : 'light');
+    localStorage.setItem('bb-theme', isLight ? 'dark' : 'light');
+  }
+  // Restore saved preference
+  const savedTheme = localStorage.getItem('bb-theme');
+  if (savedTheme) document.documentElement.setAttribute('data-theme', savedTheme);
+
+  // ── MARKDOWN RENDERER ─────────────────────────────────────
+  function renderMarkdown(md) {
+    if (!md) return '<p style="color:var(--text-dim)">No data returned.</p>';
+
+    // Strip ASCII report header block (everything up to and including the
+    // third ===== separator that precedes the actual LLM content)
+    const headerEnd = (() => {
+      let count = 0;
+      const lines = md.split('\n');
+      for (let i = 0; i < lines.length; i++) {
+        if (/^={4,}/.test(lines[i].trim())) { count++; if (count === 3) return i + 1; }
+      }
+      return 0;
+    })();
+    // Strip ASCII footer block (from the first ===== after "END OF REPORT" keyword)
+    const footerStart = (() => {
+      const lines = md.split('\n');
+      for (let i = lines.length - 1; i >= 0; i--) {
+        if (/END OF REPORT/i.test(lines[i])) return i;
+      }
+      return md.split('\n').length;
+    })();
+    md = md.split('\n').slice(headerEnd, footerStart).join('\n').trim();
+
+    let html = md
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+
+    // ASCII separators → styled dividers
+    html = html.replace(/^={4,}\s*$/gm,  '<hr class="sep-major">');
+    html = html.replace(/^─{4,}\s*$/gm,  '<hr class="sep-minor">');
+    html = html.replace(/^-{4,}\s*$/gm,  '<hr class="sep-minor">');
+
+    html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>');
+    html = html.replace(/^## (.+)$/gm,  '<h2>$1</h2>');
+    html = html.replace(/^# (.+)$/gm,   '<h1>$1</h1>');
+    html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    html = html.replace(/\*(.+?)\*/g,     '<em>$1</em>');
+    // Tables
+    html = html.replace(/^\|(.+)\|$/gm, (_, row) => {
+      const cells = row.split('|').map(c => c.trim());
+      return '<tr>' + cells.map(c => /^[-: ]+$/.test(c) ? '' : `<td>${c}</td>`).join('') + '</tr>';
+    });
+    html = html.replace(/(<tr>[\s\S]*?<\/tr>\n?)+/g, t => {
+      const rows = t.trim().split('\n').filter(r => r.includes('<td>'));
+      if (!rows.length) return '';
+      const header = rows[0].replace(/<td>/g, '<th>').replace(/<\/td>/g, '</th>');
+      const body   = rows.slice(1).join('\n');
+      return `<table><thead>${header}</thead><tbody>${body}</tbody></table>`;
+    });
+    html = html.replace(/^- (.+)$/gm,     '<li>$1</li>');
+    html = html.replace(/(<li>.*?<\/li>\n?)+/gs, b => '<ul>' + b + '</ul>');
+    html = html.replace(/<em>(This analysis[\s\S]+?)<\/em>/g,
+      '<div class="disclaimer">$1</div>');
+
+    const blockTags = ['<h1','<h2','<h3','<ul','<li','<div','<hr','<table'];
+    const lines = html.split('\n');
+    const out = []; let buf = [];
+    for (const line of lines) {
+      const t = line.trim();
+      const isBlock = blockTags.some(tag => t.startsWith(tag));
+      if (t === '') {
+        if (buf.length) { out.push('<p>' + buf.join(' ') + '</p>'); buf = []; }
+      } else if (isBlock) {
+        if (buf.length) { out.push('<p>' + buf.join(' ') + '</p>'); buf = []; }
+        out.push(line);
+      } else { buf.push(line); }
+    }
+    if (buf.length) out.push('<p>' + buf.join(' ') + '</p>');
+    return out.join('\n');
+  }
+
+  // ── HELPERS ───────────────────────────────────────────────
+  function showError(msg) {
+    const el = document.getElementById('errorMsg');
+    el.textContent = '⚠ ' + msg; el.classList.add('show');
+  }
+  function clearError() { document.getElementById('errorMsg').classList.remove('show'); }
+
+  function setStep(n) {
+    const steps = ['step1','step2','step3','step4'];
+    const pcts  = [15, 40, 65, 90];
+    steps.forEach((id, i) => {
+      const el = document.getElementById(id);
+      el.classList.remove('active','done');
+      if (i < n - 1)  el.classList.add('done');
+      if (i === n - 1) el.classList.add('active');
+    });
+    document.getElementById('loadingBar').style.width = pcts[n-1] + '%';
+  }
+
+  function extractRating(text) {
+    const m = text && text.match(/\b(\d{1,2})\s*\/\s*10\b/);
+    return m ? m[1] + '/10' : null;
+  }
+
+  function ratingClass(ratingStr) {
+    if (!ratingStr) return 'rating-neut';
+    const n = parseInt(ratingStr);
+    if (n >= 7) return 'rating-bull';
+    if (n <= 4) return 'rating-bear';
+    return 'rating-neut';
+  }
+
+  function ratingLabel(ratingStr) {
+    if (!ratingStr) return 'NEUTRAL';
+    const n = parseInt(ratingStr);
+    if (n >= 7) return 'BULL';
+    if (n <= 4) return 'BEAR';
+    return 'NEUTRAL';
+  }
+
+  function populateResults(data, ticker) {
+    const finalRating = data.financial_analysis_raiting || extractRating(data.financial_analysis) || '—';
+
+    document.getElementById('resultTicker').textContent = ticker.toUpperCase();
+    const badge = document.getElementById('ratingBadge');
+    badge.textContent = ratingLabel(finalRating);
+    badge.className   = 'rating-badge ' + ratingClass(finalRating);
+
+    // Extract company name embedded in the ASCII header: line between 1st and 2nd ===== blocks
+    const companyName = (() => {
+      const lines = (data.financial_analysis || '').split('\n');
+      let sepCount = 0;
+      for (const line of lines) {
+        if (/^={4,}/.test(line.trim())) { sepCount++; continue; }
+        if (sepCount === 1) {
+          const m = line.match(/([A-Za-z][\w\s,.'&-]+?)\s*\(/);
+          if (m) return m[1].trim();
+        }
+        if (sepCount >= 2) break;
+      }
+      return ticker.toUpperCase();
+    })();
+    const reportDate  = new Date().toLocaleDateString('en-GB', { day:'numeric', month:'long', year:'numeric' });
+    const outlook     = ratingLabel(finalRating);
+    const outlookCls  = ratingClass(finalRating).replace('rating-', '');
+
+    const reportHeader = `<div class="report-title-block">
+      <div class="report-title-label">Financial Analysis Report</div>
+      <div class="report-title-company" id="reportCompanyName">${companyName}</div>
+      <div class="report-title-meta">
+        <span>Report Generated: ${reportDate}</span>
+        <span>Investment Outlook: <strong class="outlook-${outlookCls}">${outlook}</strong></span>
+      </div>
+    </div>`;
+
+    document.getElementById('reportText').innerHTML =
+      reportHeader + renderMarkdown(data.financial_analysis || 'No financial analysis returned.');
+  }
+
+  // ── RESET ─────────────────────────────────────────────────
+  function resetUI() {
+    document.getElementById('resultsState').classList.remove('show');
+    document.getElementById('resultTicker').textContent = '';
+    document.getElementById('tickerInput').value = '';
+    document.getElementById('analyzeBtn').disabled = false;
+    document.getElementById('tickerInput').focus();
+    clearError();
+    renderHistory('');
+  }
+
+  // ── MAIN ──────────────────────────────────────────────────
+  async function runAnalysis() {
+    clearError();
+    const ticker = document.getElementById('tickerInput').value.trim().toUpperCase();
+    if (!ticker) { showError('Please enter a ticker symbol.'); return; }
+    if (!/^[A-Z0-9]{1,12}(\.[A-Z]{1,3})?$/.test(ticker)) { showError('Invalid ticker format. Examples: AAPL · RELIANCE.NS · SBIN.BO · BARC.L · 0700.HK'); return; }
+
+    document.getElementById('analyzeBtn').disabled = true;
+    document.getElementById('resultsState').classList.remove('show');
+    document.getElementById('loadingTicker').textContent = ticker;
+    document.getElementById('loadingState').classList.add('show');
+    document.getElementById('loadingBar').style.width = '0%';
+    setStep(1);
+
+    try {
+      const t1 = setTimeout(() => setStep(2), 1200);
+      const t2 = setTimeout(() => setStep(3), 3000);
+      const t3 = setTimeout(() => setStep(4), 5500);
+
+      // ── LIVE MODE: uncomment below and remove SAMPLE_DATA lines ──
+       const response = await fetch(API_ENDPOINT, {
+         method: 'POST',
+         headers: { 'Content-Type': 'application/json' },
+         body: JSON.stringify({ ticker })
+       });
+      if (!response.ok) {
+        let errMsg = 'Server error ' + response.status;
+        try {
+          const errData = await response.json();
+          if (errData.detail)  errMsg = errData.detail;
+          else if (errData.message) errMsg = errData.message;
+          else if (errData.error)   errMsg = errData.error;
+        } catch {}
+        throw new Error(errMsg);
+      }
+      const data = await response.json();
+
+
+      clearTimeout(t1); clearTimeout(t2); clearTimeout(t3);
+      document.getElementById('loadingBar').style.width = '100%';
+      await new Promise(r => setTimeout(r, 350));
+
+      populateResults(data, ticker);
+      saveToHistory(ticker, data);
+      renderHistory('');
+      document.getElementById('loadingState').classList.remove('show');
+      document.getElementById('resultsState').classList.add('show');
+
+    } catch (err) {
+      document.getElementById('loadingState').classList.remove('show');
+      document.getElementById('analyzeBtn').disabled = false;
+      showError(err.message || 'Failed to reach the analysis server. Is LangGraph running?');
+    }
+  }
+
+  // ── MARKET INFO ───────────────────────────────────────────
+  function getMarketInfo(ticker) {
+    const t = ticker.toUpperCase();
+    if (t.endsWith('.NS')) return { flag: '🇮🇳', name: 'NSE' };
+    if (t.endsWith('.BO')) return { flag: '🇮🇳', name: 'BSE' };
+    if (t.endsWith('.L'))  return { flag: '🇬🇧', name: 'LSE' };
+    if (t.endsWith('.HK')) return { flag: '🇭🇰', name: 'HKEX' };
+    return { flag: '🇺🇸', name: 'NYSE/NASDAQ' };
+  }
+
+  // ── HISTORY ───────────────────────────────────────────────
+  const HISTORY_KEY  = 'bb_history';
+  const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+
+  function loadHistory() {
+    try { return JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]'); }
+    catch { return []; }
+  }
+  function saveHistory(list) {
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(list));
+  }
+
+  function saveToHistory(ticker, data) {
+    const list    = loadHistory().filter(e => e.ticker !== ticker);
+    const rating  = data.financial_analysis_raiting || extractRating(data.financial_analysis) || '—';
+    const company = (() => {
+      const lines = (data.financial_analysis || '').split('\n');
+      let sep = 0;
+      for (const l of lines) {
+        if (/^={4,}/.test(l.trim())) { sep++; continue; }
+        if (sep === 1) { const m = l.match(/([A-Za-z][\w\s,.'&-]+?)\s*\(/); if (m) return m[1].trim(); }
+        if (sep >= 2) break;
+      }
+      return ticker;
+    })();
+    list.unshift({ ticker, company, rating, generatedAt: Date.now(), data });
+    saveHistory(list.slice(0, 20));
+  }
+
+  function renderHistory(activeTicker) {
+    const list = loadHistory().filter(e => e.ticker !== activeTicker);
+    const section = document.getElementById('historySection');
+    const container = document.getElementById('historyList');
+    if (!list.length) { section.style.display = 'none'; return; }
+    section.style.display = 'block';
+    container.innerHTML = '';
+
+    list.forEach((entry, idx) => {
+      const stale   = (Date.now() - entry.generatedAt) > CACHE_TTL_MS;
+      const dateStr = new Date(entry.generatedAt).toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric' });
+      const cls     = ratingClass(entry.rating);
+      const lbl     = ratingLabel(entry.rating);
+
+      const item = document.createElement('div');
+      item.className = 'history-item';
+      const mkt = getMarketInfo(entry.ticker);
+      item.innerHTML = `
+        <div class="history-item-header" onclick="toggleHistoryItem(this)">
+          <span class="history-chevron">▶</span>
+          <span class="history-ticker">${entry.ticker}</span>
+          <span class="history-company">${entry.company}</span>
+          <span style="font-family:var(--font-mono);font-size:11px;color:var(--text-dim);flex-shrink:0;display:flex;align-items:center;gap:5px">${mkt.flag} ${mkt.name}</span>
+          <span class="rating-badge ${cls}" style="font-size:10px;padding:3px 10px">${lbl}</span>
+          <span class="history-date">${dateStr}</span>
+          <span class="history-actions" onclick="event.stopPropagation()">
+            ${stale ? `<button class="history-btn reload" onclick="reloadHistory('${entry.ticker}')">↻ Reload</button>` : ''}
+            <button class="history-btn del" onclick="deleteHistory('${entry.ticker}')">✕ Delete</button>
+          </span>
+        </div>
+        <div class="history-item-body">
+          ${stale ? '<div class="history-stale-banner">⚠ Cache expired — reload for a fresh report</div>' : ''}
+          <div class="report-body">${renderMarkdown(entry.data.financial_analysis || '')}</div>
+        </div>`;
+      container.appendChild(item);
+    });
+  }
+
+  function toggleHistoryItem(header) {
+    header.closest('.history-item').classList.toggle('open');
+  }
+
+  function deleteHistory(ticker) {
+    saveHistory(loadHistory().filter(e => e.ticker !== ticker));
+    renderHistory(document.getElementById('resultTicker').textContent || '');
+  }
+
+  function reloadHistory(ticker) {
+    document.getElementById('tickerInput').value = ticker;
+    deleteHistory(ticker);
+    runAnalysis();
+  }
+
+  // Restore history on page load (DOM already ready — script is at end of body)
+  renderHistory('');
+
+  document.getElementById('tickerInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') runAnalysis();
+  });
+  document.getElementById('tickerInput').addEventListener('input', e => {
+    const pos = e.target.selectionStart;
+    e.target.value = e.target.value.toUpperCase();
+    e.target.setSelectionRange(pos, pos);
+  });
+</script>
+</body>
+</html>
