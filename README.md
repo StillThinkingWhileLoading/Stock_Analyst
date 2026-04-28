@@ -22,6 +22,7 @@
 
 <img width="1832" height="1614" alt="image" src="https://github.com/user-attachments/assets/0c99a58a-fd25-42a3-aa4b-9f101b2b136c" />
 
+<img width="1758" height="4212" alt="image" src="https://github.com/user-attachments/assets/45ff7dca-57d0-40b5-a411-19492cc5fd7b" />
 
 > Dark-mode terminal interface — enter any global ticker (US, India NSE/BSE, London, Hong Kong) and get a full investment debate in under a minute.
 
